@@ -14,10 +14,11 @@ import drive from '../assets/google-drive.png'
 import './sidebar-footer.css'
 
 /** Account and app connections float above the scrolling roster; Extensions only when given. */
-export function SidebarFooter({ accountOpen, onAccount, onExtensions }: {
+export function SidebarFooter({ accountOpen, onAccount, onExtensions, onDashboard }: {
   accountOpen: boolean
   onAccount: () => void
   onExtensions?: () => void
+  onDashboard?: () => void
 }) {
   const tr = useTr()
   const notice = useAccountNotice()
@@ -54,6 +55,7 @@ export function SidebarFooter({ accountOpen, onAccount, onExtensions }: {
       >
         <ProfileAvatar />
       </button>
+      {onDashboard ? <IconButton title={tr('Dashboard')} icon="chart.bar" onClick={onDashboard} /> : null}
       {onExtensions ? (
         <button className="extensions" onClick={onExtensions}>
           <span>{tr('Extensions')}</span>

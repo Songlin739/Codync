@@ -1,0 +1,43 @@
+/* The sidebar's bottom half: every artifact and shared file across every group and bot. */
+.file-manager {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 10px 6px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.file-manager-title {
+  padding: 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.file-manager-empty {
+  padding: 4px 4px 8px;
+}
+.file-manager-list {
+  min-height: 0;
+}
+.file-manager-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.file-manager-group {
+  padding: 8px 4px 2px;
+}
+.file-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  border-radius: var(--radius-s);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-width: 0;
+}
+.file-manager-row:hover {
+  background: var(--fill-secondary);
+}

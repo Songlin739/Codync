@@ -7,7 +7,7 @@ import { Dialog, ModalHeader, SheetPage, useDismiss } from '../../components/Ove
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { errorText } from './drafts'
+import { errorText, fillDefaults, newDraft } from './drafts'
 import { AutoTextArea } from './parts'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
@@ -27,6 +27,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [creatingBot, setCreatingBot] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Bot | null>(null)
 
@@ -42,6 +43,21 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const toggle = (id: string) => {
     setMembers((list) => (list.includes(id) ? list.filter((m) => m !== id) : [...list, id]))
     setQuery('')
+  }
+
+  /** A brand-new bot, named after the search box, joins the group as soon as it's created. */
+  const createAndAdd = async () => {
+    setCreatingBot(true)
+    setError(null)
+    try {
+      const bot = await store.save(fillDefaults(store, { ...newDraft(), name: query.trim() }))
+      toggle(bot.id)
+      setAdding(false)
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setCreatingBot(false)
+    }
   }
 
   const save = () => {
@@ -93,15 +109,23 @@ export function GroupEditorView({ group }: { group: Bot }) {
                     <Icon name="plus.circle" size={18} color="var(--secondary)" />
                   </button>
                 ))}
+                <button className="member-row press fade-in" disabled={creatingBot} onClick={() => void createAndAdd()}>
+                  <span className="member-add-icon">
+                    {creatingBot ? <Spinner /> : <Icon name="plus" size={16} color="var(--secondary)" />}
+                  </span>
+                  <Text tone="secondary" className="member-name">
+                    {query.trim() ? tr('Create bot "{name}"').replaceAll('{name}', () => query.trim()) : tr('Create a new bot')}
+                  </Text>
+                </button>
               </>
-            ) : candidates.length ? (
+            ) : (
               <button className="member-row press" onClick={() => setAdding(true)}>
                 <span className="member-add-icon">
                   <Icon name="plus" size={16} color="var(--secondary)" />
                 </span>
                 <Text tone="secondary" className="member-name">{tr(`Add Member`)}</Text>
               </button>
-            ) : null}
+            )}
             <Text as="div" size="caption" tone="tertiary" className="group-note">{tr(`Everyone answers in turn unless you @mention someone.`)}</Text>
           </VStack>
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}

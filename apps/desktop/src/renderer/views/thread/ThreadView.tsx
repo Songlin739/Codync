@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { draftOf, isGroup, isWorking, isWorkingIn, type Bot, type BotDraft, type Entry, type ReplyQuote } from '@shared/models'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
-import { Spinner } from '../../components/Controls'
+import { IconButton, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Sheet, usePresence } from '../../components/Overlay'
 import { HStack, IconSlot, Spacer } from '../../components/Stack'
@@ -38,6 +38,7 @@ import { FormSheet } from '../marketplace/pieces'
 import { CallView } from '../call/CallView'
 import { MacChatButton } from './MacChatButton'
 import { ArtifactView } from '../library/ArtifactView'
+import { GroupDashboardView } from '../GroupDashboardView'
 import { KofiInviteCard } from './KofiInvite'
 import { useKofiInviteAt } from '../../lib/use-kofi-invite'
 import './thread.css'
@@ -63,6 +64,7 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
   /** The voice call whose conversation is open (its line's entry id). */
   const [callLine, setCallLine] = useState<string | null>(null)
   const [editingGroup, setEditingGroup] = useState(false)
+  const [groupDashboard, setGroupDashboard] = useState(false)
   const [templateDraft, setTemplateDraft] = useState<BotDraft | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [detailsTab, setDetailsTab] = useState<DetailsTab>('details')
@@ -219,18 +221,29 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
             ) : null}
           </div>
           {/* The call bar takes the pill's place; its frosted glass would show the name blurred. */}
-          <button className={`title-pill ${calling ? 'hidden-by-call' : ''}`} inert={calling} onClick={openFromTitle} aria-label={tr('{name}, view details').replaceAll('{name}', () => bot?.name ?? tr('Conversation'))} title="View conversation details">
-            <HStack as="span" gap={7}>
-              {bot ? isGroup(bot) ? <GroupAvatar members={store.members(bot)} size={22} /> : <BotAvatar bot={bot} size={22} /> : null}
-              <Text size="body" weight="medium" tone="text" truncate>{bot?.name ?? ''}</Text>
-              <DevServerTitle summary={devServers} />
-              {/* Grok Bot's hint on hover: the pill opens the details. */}
-              <span className="title-pill-chevron">
-                <Icon name="chevron.right" size={10} weight="semibold" color="var(--secondary)" />
-              </span>
-            </HStack>
-            {store.shownConnection.kind !== 'online' || store.mismatch ? <ConnectionSubtitle /> : null}
-          </button>
+          <div className={`title-pill-wrap ${calling ? 'hidden-by-call' : ''}`} inert={calling}>
+            {bot && isGroup(bot) ? (
+              <IconButton
+                className="title-pill-dashboard"
+                title={tr('{name} dashboard').replaceAll('{name}', bot.name)}
+                icon="chart.bar"
+                size={30}
+                onClick={() => setGroupDashboard(true)}
+              />
+            ) : null}
+            <button className="title-pill" onClick={openFromTitle} aria-label={tr('{name}, view details').replaceAll('{name}', () => bot?.name ?? tr('Conversation'))} title="View conversation details">
+              <HStack as="span" gap={7}>
+                {bot ? isGroup(bot) ? <GroupAvatar members={store.members(bot)} size={22} /> : <BotAvatar bot={bot} size={22} /> : null}
+                <Text size="body" weight="medium" tone="text" truncate>{bot?.name ?? ''}</Text>
+                <DevServerTitle summary={devServers} />
+                {/* Grok Bot's hint on hover: the pill opens the details. */}
+                <span className="title-pill-chevron">
+                  <Icon name="chevron.right" size={10} weight="semibold" color="var(--secondary)" />
+                </span>
+              </HStack>
+              {store.shownConnection.kind !== 'online' || store.mismatch ? <ConnectionSubtitle /> : null}
+            </button>
+          </div>
         </div>
         {/* An update card takes the composer's place, so there's nothing to reply with. */}
         <Transcript botId={botId} reveal={reveal} openTrace={openTrace} onReply={store.mismatch ? undefined : setReplyTo} openRoutine={presentRoutine} openAgent={presentAgent} openBotChat={setBotChat} openArtifact={openArtifact} openCall={setCallLine} />
@@ -289,6 +302,9 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
       </Sheet>
       <Sheet open={editingGroup} onClose={() => setEditingGroup(false)} width={420} height={560}>
         {bot ? <GroupEditorView group={bot} /> : null}
+      </Sheet>
+      <Sheet open={groupDashboard} onClose={() => setGroupDashboard(false)} width={560} height={560}>
+        {bot && isGroup(bot) ? <GroupDashboardView group={bot} onClose={() => setGroupDashboard(false)} onSelectMember={setBotChat} /> : null}
       </Sheet>
       <FormSheet open={!!member} onClose={() => setEditingMember(null)} width={520} height={680} fixed>
         {member ? <BotEditorView key={member.id} draft={draftOf(member)} /> : null}

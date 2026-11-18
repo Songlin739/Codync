@@ -47,15 +47,15 @@ async fn a_manager_creates_and_changes_bots_that_record_who_made_them() {
         (cfg.name.as_str(), cfg.description.as_str(), cfg.avatar_color.as_str()),
         ("Security Analyst", "Reviews code.", "red")
     );
-    // It manages the team like the bot that made it, and asks no less.
-    assert_eq!((cfg.created_by.as_deref(), cfg.permission, cfg.manage_team), (Some("lead"), Permission::Auto, true));
+    // It asks no less than the bot that made it, but doesn't manage the team unless asked to.
+    assert_eq!((cfg.created_by.as_deref(), cfg.permission, cfg.manage_team), (Some("lead"), Permission::Auto, false));
     assert_eq!(cfg.mode.as_deref(), Some("plan"), "in the same mode");
     // Another agent may not have that mode: no bot is made on it.
     let other = json!({"name": "Reviewer", "agent": "codex"});
     let refused = call(&hub, "lead", "create_bot", &other).await.unwrap_err().to_string();
     assert!(refused.contains("plan mode, which Codex may not have"), "{refused}");
-    // And reaches only the connectors and skills it does, not every installed one.
-    assert_eq!((cfg.connectors, cfg.skills), (vec!["github".to_owned()], vec![]));
+    // It shares the skills it does, not every installed one, but starts with none of its connectors.
+    assert_eq!((cfg.connectors, cfg.skills), (Vec::<String>::new(), vec![]));
     assert_eq!(made["routines"][0]["triggerDescriptions"][0], "Every 30 minutes");
 
     call(&hub, "lead", "update_bot", &json!({"botId": "dev", "instructions": "Writes code.", "hidden": true}))
@@ -114,6 +114,15 @@ async fn a_manager_creates_and_changes_bots_that_record_who_made_them() {
     assert!(refused("lead", "create_bot", long).await.contains("too long for its approval card"));
     assert_eq!(hub.store.bots().unwrap().len(), 3, "a refused change creates nothing");
     assert_eq!(hub.routines.list("dev")["routines"], json!([]));
+    // The creator can still opt a bot into managing the team too (back to auto so this reaches create_bot directly).
+    hub.update_bot(&json!({"id": "lead", "permission": "auto"})).unwrap();
+    let promoted = call(&hub, "lead", "create_bot", &json!({"name": "Manager two", "manageTeam": true})).await.unwrap();
+    let promoted_id = promoted["bot"]["id"].as_str().unwrap();
+    assert!(hub.store.bot(promoted_id).unwrap().unwrap().config.manage_team);
+    // Asking gets it only the connectors the creator itself has; anything else is simply dropped.
+    let scouted = call(&hub, "lead", "create_bot", &json!({"name": "Scout", "connectors": ["github", "slack"]})).await.unwrap();
+    let scout_id = scouted["bot"]["id"].as_str().unwrap();
+    assert_eq!(hub.store.bot(scout_id).unwrap().unwrap().config.connectors, vec!["github".to_owned()]);
     // Bots that bots made stop at MAX_CREATED, so managers making managers can't multiply without end.
     for n in 1..MAX_CREATED {
         let cfg: BotConfig =
