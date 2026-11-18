@@ -30,6 +30,8 @@ import { NewBotView, NewGroupView } from './bots/NewBotView'
 import { ImportBotsSheet } from './bots/ImportBotsView'
 import { BotEditorView } from './bots/BotEditorView'
 import { MarketplaceView } from './marketplace/MarketplaceView'
+import { DashboardView } from './DashboardView'
+import { FileManagerPanel } from './FileManagerPanel'
 import { ScreenViewer } from './screen/ScreenViewer'
 import { SignInCodeDialog } from './marketplace/ConnectorSheets'
 import { SettingsView, type SettingsPage } from './settings/SettingsView'
@@ -220,6 +222,7 @@ function ChatSplitView() {
   const [confirmDelete, setConfirmDelete] = useState<BotTarget | null>(null)
   const [newSessionBot, setNewSessionBot] = useState<BotTarget | null>(null)
   const [marketplace, setMarketplace] = useState<string | null>(null)
+  const [dashboard, setDashboard] = useState(false)
   const [settings, setSettings] = useState<SettingsPage | null>(null)
   const openVoiceSettings = useCallback(() => setSettings('voice'), [])
   const [showAccount, setShowAccount] = useState(false)
@@ -263,6 +266,9 @@ function ChatSplitView() {
   const selectionKey = app.selection ? refKey(app.selection) : null
   useEffect(() => setShownRequest((asked) => (asked && asked.ref !== selectionKey ? null : asked)), [selectionKey])
   const workButton = (size: number, className?: string) => <AllWorkButton shown={work.bots.length > 0} working={work.working} size={size} className={className} onClick={() => setShowWork(true)} />
+  // The sidebar's top half: groups only (a standalone bot like JEV Lead runs in the background and
+  // doesn't need its own row here — the file manager below is where its work actually shows up).
+  const groupRoster = { ...roster, sections: roster.sections.map((section) => ({ ...section, items: section.items.filter((item) => isGroup(item.bot)) })) }
 
   const create = (kind: CreateTarget['kind']) => {
     // The selected bot's computer if it's online, else this computer, else any online one.
@@ -420,7 +426,7 @@ function ChatSplitView() {
         ) : null}
         <div className="roster" ref={listRef} tabIndex={0} onKeyDown={onListKey}>
           {roster.grouped && !compact ? <ExtensionsMovedTip /> : null}
-          <BotRoster roster={roster} compact={compact}
+          <BotRoster roster={compact ? roster : groupRoster} compact={compact}
             onContext={(bot, store, x, y) => setContext({ items: botActions(bot, store), x, y })}
             onSectionContext={(section, store, x, y) => {
               const items = sectionHeaderItems(section, store, setNaming, (to) => roster.renameSection(store, section, to))
@@ -438,6 +444,9 @@ function ChatSplitView() {
             </div>
           ) : null}
         </div>
+        {compact ? null : (
+          <FileManagerPanel onOpen={(ref) => app.select(ref)} />
+        )}
         {compact ? (
           <div className="rail-actions">
             <IconButton title="Search" icon="magnifyingglass" onClick={() => setSearching(true)} />
@@ -445,6 +454,7 @@ function ChatSplitView() {
             <IconButton title="New" icon="plus" size={36} buttonRef={railNewButton} menuOpen={railNewMenu} disabled={!onlineStores.length} onClick={() => setRailNewMenu((o) => !o)} />
             <AnchoredMenu open={railNewMenu} onClose={() => setRailNewMenu(false)} anchor={railNewButton} items={newItems} />
             <IconButton title="Extensions" icon="square.grid.2x2" size={36} onClick={openMarketplace} />
+            <IconButton title="Dashboard" icon="chart.bar" size={36} onClick={() => setDashboard(true)} />
             <UpdateBadge size={32} />
             <RailAccountNotice />
             <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label="Open account menu for Account" title="Account" onClick={() => setShowAccount((s) => !s)}>
@@ -453,7 +463,7 @@ function ChatSplitView() {
           </div>
         ) : (
           // With several computers each heading opens its own Extensions instead.
-          <SidebarFooter accountOpen={showAccount} onAccount={() => setShowAccount((s) => !s)} onExtensions={roster.grouped ? undefined : openMarketplace} />
+          <SidebarFooter accountOpen={showAccount} onAccount={() => setShowAccount((s) => !s)} onExtensions={roster.grouped ? undefined : openMarketplace} onDashboard={() => setDashboard(true)} />
         )}
       </aside>
       <ResizeHandle label={tr('Resize sidebar')} width={width} min={76} max={sidebarMax} edge="trailing" onResize={resizeSidebar} onDragging={setResizing} />
@@ -521,6 +531,9 @@ function ChatSplitView() {
             <MarketplaceView key={marketplace} />
           </StoreContext.Provider>
         ) : null}
+      </Sheet>
+      <Sheet open={dashboard} onClose={() => setDashboard(false)} width={Math.min(920, windowSize.width - 80)} height={sheetHeight} dismissOnDim>
+        {dashboard ? <DashboardView onClose={() => setDashboard(false)} /> : null}
       </Sheet>
       <Sheet open={settings !== null} onClose={() => setSettings(null)} width={Math.min(800, windowSize.width - 80)} height={Math.min(620, sheetHeight)}>
         {settings ? <SettingsView page={settings} setPage={setSettings} /> : null}

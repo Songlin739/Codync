@@ -3,7 +3,7 @@
 use super::{BotStatus, Hub, Runtime};
 use crate::LockExt;
 use crate::store::BotConfig;
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 
 impl Hub {
     /// A group is busy while one of its members works in it: that member's status and activity.
@@ -20,6 +20,32 @@ impl Hub {
         let name = self.bot_name(&member);
         r.activity = if r.activity.is_empty() { name } else { format!("{name}: {}", r.activity) };
         r
+    }
+
+    /// Adds `member` to `group`, for a bot's own `add_member` tool call (`chat::manage`): the caller
+    /// already checked it's acting inside this exact group, so this never reaches into one it isn't
+    /// part of. Already a member is a no-op, not an error. Read-then-write under the lock, like
+    /// `leave_groups`, so a concurrent edit isn't clobbered.
+    pub fn add_member(&self, group: &str, member: &str) -> Result<()> {
+        let added = {
+            let _g = self.emit_lock.locked();
+            let row = self.store.bot(group)?.filter(|r| !r.deleted).context("unknown group")?;
+            let mut cfg = row.config;
+            if !cfg.is_group() {
+                bail!("not a group");
+            }
+            if cfg.members.iter().any(|m| m == member) {
+                false
+            } else {
+                cfg.members.push(member.to_owned());
+                self.store.save_bot(&cfg)?;
+                true
+            }
+        };
+        if added {
+            self.emit_bot(group);
+        }
+        Ok(())
     }
 
     /// Takes bot `id` out of every group it was in; what it said there stays. Each group is read again

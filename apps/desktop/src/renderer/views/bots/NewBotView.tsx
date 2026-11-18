@@ -2,12 +2,13 @@ import { useState, type ReactNode } from 'react'
 import { isGroup, type Bot } from '@shared/models'
 import { BotAvatar, CharacterAvatar, GroupAvatar } from '../../components/Avatar'
 import { Button, ChoicePicker, Spinner } from '../../components/Controls'
+import { Icon } from '../../components/Icon'
 import { ModalHeader, useDismiss } from '../../components/Overlay'
 import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { useTr } from '../../lib/use-language'
-import { errorText, fillDefaults, newDraft } from './drafts'
+import { ensureJev, errorText, fillDefaults, newDraft } from './drafts'
 import { AvatarPicker } from './parts'
 import './bots.css'
 
@@ -58,6 +59,8 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
   const store = useStore()
   const [name, setName] = useState('')
   const [members, setMembers] = useState<string[]>([])
+  const [creatingBot, setCreatingBot] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const bots = store.roster.filter((b) => !isGroup(b))
   const picked = members.map((id) => store.bots.get(id)).filter((b): b is Bot => !!b)
   // "Alice, Bob" when no name is typed.
@@ -65,7 +68,22 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
 
   const toggle = (id: string) => setMembers((list) => (list.includes(id) ? list.filter((m) => m !== id) : [...list, id]))
   const create = async () => {
-    await store.createGroup(name.trim() || defaultName, '', members)
+    // Every new group gets its own standing JEV supervisor alongside whoever was picked.
+    const jevId = await ensureJev(store)
+    await store.createGroup(name.trim() || defaultName, '', members.includes(jevId) ? members : [...members, jevId])
+  }
+  /** A fresh, unnamed bot (the host names it after its first conversations) joins the group right away. */
+  const createMember = async () => {
+    setCreatingBot(true)
+    setError(null)
+    try {
+      const bot = await store.save(fillDefaults(store, newDraft()))
+      setMembers((list) => [...list, bot.id])
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setCreatingBot(false)
+    }
   }
 
   return (
@@ -79,23 +97,26 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
       computer={computer}
       create={create}
     >
-      {bots.length ? (
-        <HStack wrap justify="center" align="flex-start" gap={4} className="create-members">
-          {bots.map((bot) => {
-            const on = members.includes(bot.id)
-            return (
-              <button key={bot.id} className="press create-member" aria-pressed={on} onClick={() => toggle(bot.id)}>
-                <span className={`swatch ${on ? 'on' : ''}`}>
-                  <BotAvatar bot={bot} size={44} animated={false} />
-                </span>
-                <Text size="caption" tone={on ? 'text' : 'secondary'} truncate className="create-member-name">{bot.name}</Text>
-              </button>
-            )
-          })}
-        </HStack>
-      ) : (
-        <Text tone="secondary">{tr(`No bots yet. Create a bot first.`)}</Text>
-      )}
+      <HStack wrap justify="center" align="flex-start" gap={4} className="create-members">
+        {bots.map((bot) => {
+          const on = members.includes(bot.id)
+          return (
+            <button key={bot.id} className="press create-member" aria-pressed={on} onClick={() => toggle(bot.id)}>
+              <span className={`swatch ${on ? 'on' : ''}`}>
+                <BotAvatar bot={bot} size={44} animated={false} />
+              </span>
+              <Text size="caption" tone={on ? 'text' : 'secondary'} truncate className="create-member-name">{bot.name}</Text>
+            </button>
+          )
+        })}
+        <button className="press create-member" disabled={creatingBot} onClick={() => void createMember()}>
+          <span className="swatch">
+            {creatingBot ? <Spinner /> : <Icon name="plus" size={20} color="var(--secondary)" />}
+          </span>
+          <Text size="caption" tone="secondary" truncate className="create-member-name">{tr(`New bot`)}</Text>
+        </button>
+      </HStack>
+      {error ? <Text size="footnote" tone="danger">{error}</Text> : null}
       <Text as="div" size="caption" tone="tertiary">{tr(`Everyone answers in turn unless you @mention someone.`)}</Text>
     </CreateLayout>
   )

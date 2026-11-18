@@ -8,6 +8,11 @@ interface BuildConfig {
   environment: 'main' | 'dev'
   clerkPublishableKey: string | null
   cloudURL: string | null
+  /** A custom build's own display name (e.g. a font-patched fork): gives it its own app name
+   *  and userData folder so its single-instance lock never collides with the official build's,
+   *  while it still talks to the same host daemon (environmentProfile's appId/port/scheme are
+   *  untouched) and shares the same bots and data. */
+  customLabel?: string | null
 }
 
 const path = app.isPackaged
@@ -30,4 +35,7 @@ if (identity.environment === 'dev') {
     app.commandLine.appendSwitch('use-mock-keychain')
     app.commandLine.appendSwitch('password-store', 'basic')
   }
+} else if (buildConfig.customLabel) {
+  app.setName(buildConfig.customLabel)
+  app.setPath('userData', join(app.getPath('appData'), buildConfig.customLabel))
 }

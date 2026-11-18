@@ -1,0 +1,71 @@
+.dashboard-view {
+  padding: 4px 2px 8px;
+}
+
+.dashboard-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.dashboard-graph {
+  display: block;
+}
+
+.dashboard-node {
+  cursor: pointer;
+}
+
+.dashboard-node:hover circle:nth-child(2) {
+  stroke-width: 3;
+}
+
+.dashboard-overflow {
+  text-align: center;
+}
+
+.dashboard-panels {
+  align-items: stretch;
+}
+
+.dashboard-panel {
+  background: var(--bubble-user);
+  border-radius: var(--radius-m);
+  padding: 10px 12px;
+}
+
+.dashboard-log {
+  min-width: 0;
+}
+
+.dashboard-signals {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.dashboard-bar-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.dashboard-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.dashboard-bar-working {
+  background: #1D9E75;
+}
+
+.dashboard-bar-needsInput {
+  background: #EF9F27;
+}
+
+.dashboard-bar-error {
+  background: #E24B4A;
+}
+
+.dashboard-bar-idle {
+  background: var(--tertiary);
+}
