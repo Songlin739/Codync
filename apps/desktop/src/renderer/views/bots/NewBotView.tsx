@@ -8,7 +8,7 @@ import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { useTr } from '../../lib/use-language'
-import { ensureJev, errorText, fillDefaults, newDraft } from './drafts'
+import { createGroupRoster, errorText, fillDefaults, newDraft } from './drafts'
 import { AvatarPicker } from './parts'
 import './bots.css'
 
@@ -68,9 +68,13 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
 
   const toggle = (id: string) => setMembers((list) => (list.includes(id) ? list.filter((m) => m !== id) : [...list, id]))
   const create = async () => {
-    // Every new group gets its own standing JEV supervisor alongside whoever was picked.
-    const jevId = await ensureJev(store)
-    await store.createGroup(name.trim() || defaultName, '', members.includes(jevId) ? members : [...members, jevId])
+    const finalName = name.trim() || defaultName
+    // Every new group gets its own standing roster — JEV plus the five standard reviewers — alongside
+    // whoever was picked from the grid; picking anyone here is now optional.
+    const [jevId, ...rest] = await createGroupRoster(store, finalName)
+    const standing = [jevId, ...rest]
+    const allMembers = [...standing, ...members.filter((id) => !standing.includes(id))]
+    await store.createGroup(finalName, '', allMembers, jevId)
   }
   /** A fresh, unnamed bot (the host names it after its first conversations) joins the group right away. */
   const createMember = async () => {
@@ -93,10 +97,11 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
       name={name}
       placeholder={defaultName || 'Name your group'}
       onName={setName}
-      canCreate={members.length > 0}
+      canCreate
       computer={computer}
       create={create}
     >
+      <Text as="div" size="caption" tone="tertiary">{tr(`Starts with JEV and its 5 standing reviewers. Add more bots if you want (optional).`)}</Text>
       <HStack wrap justify="center" align="flex-start" gap={4} className="create-members">
         {bots.map((bot) => {
           const on = members.includes(bot.id)
@@ -117,7 +122,7 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
         </button>
       </HStack>
       {error ? <Text size="footnote" tone="danger">{error}</Text> : null}
-      <Text as="div" size="caption" tone="tertiary">{tr(`Everyone answers in turn unless you @mention someone.`)}</Text>
+      <Text as="div" size="caption" tone="tertiary">{tr(`Your messages always go to JEV; the rest of the team answers through it.`)}</Text>
     </CreateLayout>
   )
 }

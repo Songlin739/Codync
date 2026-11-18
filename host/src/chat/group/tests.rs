@@ -23,7 +23,7 @@ fn said(text: &str) -> Entry {
 fn mentions_pick_responders_and_no_mention_means_everyone() {
     let members = [bot("a", "Alice Chen"), bot("b", "Bob"), bot("c", "尼采課")];
     let ids = |m: &[BotConfig], text: &str| -> Vec<String> {
-        responders(m, &[said(text)]).into_iter().map(|b| b.id.clone()).collect()
+        responders(m, &[said(text)], None).into_iter().map(|b| b.id.clone()).collect()
     };
     assert_eq!(ids(&members, "hi all"), ["a", "b", "c"]);
     assert_eq!(ids(&members, "@bob can you look"), ["b"]);
@@ -33,8 +33,23 @@ fn mentions_pick_responders_and_no_mention_means_everyone() {
     assert_eq!(ids(&members, "@all go"), ["a", "b", "c"]);
     let mut reply = said("why?");
     reply.data["replyTo"] = json!({"id": "x", "author": "b", "text": "done"});
-    let replied: Vec<String> = responders(&members, &[reply]).into_iter().map(|b| b.id.clone()).collect();
+    let replied: Vec<String> = responders(&members, &[reply], None).into_iter().map(|b| b.id.clone()).collect();
     assert_eq!(replied, ["b"], "a reply asks the bot it quotes");
+}
+
+#[test]
+fn a_primary_contact_answers_the_user_no_matter_what_the_message_names() {
+    let members = [bot("a", "Alice"), bot("b", "Bob"), bot("c", "Cara")];
+    let ids = |text: &str| -> Vec<String> {
+        responders(&members, &[said(text)], Some("a")).into_iter().map(|b| b.id.clone()).collect()
+    };
+    assert_eq!(ids("hi all"), ["a"], "nobody named still goes to the primary contact alone");
+    assert_eq!(ids("@bob can you look"), ["a"], "an @mention of someone else doesn't reach them");
+    assert_eq!(ids("@all go"), ["a"], "not even @all bypasses the primary contact");
+    let mut reply = said("why?");
+    reply.data["replyTo"] = json!({"id": "x", "author": "b", "text": "done"});
+    let replied: Vec<String> = responders(&members, &[reply], Some("a")).into_iter().map(|b| b.id.clone()).collect();
+    assert_eq!(replied, ["a"], "replying to another member's message doesn't reach them either");
 }
 
 #[test]
@@ -69,7 +84,7 @@ fn later_rounds_ask_only_the_members_another_member_mentioned() {
         "the user's mentions pick the first round"
     );
     let late_turn = |late: &[Entry]| -> Vec<String> {
-        let first = speakers(&members, &[said("@cara look")], Some(late), 0, &HashMap::new());
+        let first = speakers(&members, &[said("@cara look")], Some(late), 0, &HashMap::new(), None);
         first.into_iter().map(|b| b.id.clone()).collect()
     };
     assert_eq!(

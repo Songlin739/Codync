@@ -8,7 +8,7 @@
 beforePack: tools/verify-build.cjs
 afterPack: tools/windows-archive.cjs
 appId: com.pokai.Codync
-productName: Codync
+productName: Super
 copyright: ""
 directories:
   output: dist

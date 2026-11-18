@@ -208,6 +208,18 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             market::remove_skill(&hub.store, str_arg(&b, "id")?)?;
             json!({})
         }
+        // 技能分享给好友: packages one of this account's skills to hand to a friend over the
+        // group's P2P connection (not wired up yet — see `market::share`'s doc comment), and
+        // the receiving side's accept step once a package arrives.
+        "exportSkill" => json!({"package": market::export_skill(&hub.store, str_arg(&b, "id")?)?}),
+        "importSkill" => {
+            let package: market::SkillPackage = serde_json::from_value(b["package"].clone())?;
+            let conflict = if b["overwrite"].as_bool().unwrap_or(false) { market::SkillConflict::Overwrite } else { market::SkillConflict::KeepBoth };
+            let before = Installed::Skills.ids(&hub.store)?;
+            let skill = market::import_skill(&hub.store, &package, conflict)?;
+            enable_new(hub, Installed::Skills, &before)?;
+            json!({"skill": skill})
+        }
         _ => return Ok(ControlFlow::Continue(b)),
     }))
 }

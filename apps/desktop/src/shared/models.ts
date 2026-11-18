@@ -14,6 +14,9 @@ export interface Bot {
   /** `agent`, or `group`: several bots and the user in one chat. */
   kind: string
   members: string[]
+  /** For a group: its sole contact for the user's own messages (its JEV, almost always); null for the
+   *  old "everyone, unless @mentioned" behavior. Unused outside a group. */
+  primaryContact?: string | null
   name: string
   description: string
   avatarColor: string
@@ -124,6 +127,7 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     id: raw.id,
     kind: raw.kind ?? 'agent',
     members: raw.members ?? [],
+    primaryContact: raw.primaryContact ?? null,
     name: raw.name ?? 'Bot',
     description: raw.description ?? '',
     avatarColor: raw.avatarColor ?? 'blue',
@@ -869,6 +873,53 @@ export function draftOf(bot: Bot): BotDraft {
   }
 }
 
+/** An accepted friend (host `friends`): a real person's own computer, not one of this account's own
+ *  devices. See `social::friends` on the host. */
+export interface Friend {
+  id: string
+  name: string
+  signPub: string
+  boxPub: string
+  addedAt: number
+}
+
+/** An incoming friend request, not yet accepted or declined (host `friendRequests`). */
+export interface FriendRequest {
+  id: string
+  name: string
+  signPub: string
+  boxPub: string
+  receivedAt: number
+}
+
+/** This account's own display name and avatar photo (host `myProfile`/`myProfileSet`, `social::profile`)
+ *  — separate from a bot's `avatarColor`/`avatarShape`: a real person uploads a photo rather than
+ *  picking a procedural shape. `avatar` is a `data:image/...;base64,...` URL the renderer already
+ *  resized before saving it (see `lib/image-resize.ts`); `null` for either field means unset. */
+export interface MyProfile {
+  name: string | null
+  avatar: string | null
+}
+
+/** A claimable work-bot task on a 好友协作群's board (host `groupTasks`/`groupTaskClaim`): JEV (or a
+ *  human member) posts one instead of creating a work bot directly, and whoever claims it is who the
+ *  resulting bot's model quota belongs to. The group's six standing roles never go through this —
+ *  they're created directly by `createGroupRoster` and always run on the group owner's quota. */
+export interface GroupTask {
+  id: string
+  groupId: string
+  title: string
+  instructions: string
+  createdBy: string
+  createdAt: number
+  /** `null` while open. `'me'` once this account claims it; any other value is a friend's id — recorded
+   *  for display only until cross-host sync exists (see `p2p-signal.ts`), not actionable locally. */
+  claimedBy: string | null
+  /** The bot this host actually instantiated, once claimed as `'me'`; null until then and always null
+   *  for a task recorded as claimed by someone else. */
+  claimedBotId: string | null
+}
+
 export interface GroupDraft {
   id?: string
   kind: 'group'
@@ -876,4 +927,7 @@ export interface GroupDraft {
   description: string
   members: string[]
   pinned?: boolean
+  /** The group's sole contact for the user's own messages — its JEV, almost always. Null clears it
+   *  (back to "everyone, unless @mentioned"); left out, the host keeps what it has. */
+  primaryContact?: string | null
 }

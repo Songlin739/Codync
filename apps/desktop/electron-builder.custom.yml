@@ -1,0 +1,38 @@
+# Custom unsigned local build: drop notarize/codesign/CodyncScreen helper/on-device speech,
+# which all require Xcode and an Apple Developer identity that only exist on a real Mac dev
+# machine. Font patch (Times New Roman + KaiTi) lives in the renderer CSS, built normally.
+beforePack: null
+afterPack: null
+publish: null
+appId: com.pokai.Codync.custom
+productName: Super
+copyright: ""
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: resources/account-config.json
+    to: account-config.json
+  - from: resources/tray
+    to: tray
+protocols:
+  - name: Codync
+    schemes: [codync, com.pokai.Codync]
+
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon-1024.png
+  target:
+    - target: zip
+      arch: arm64
+  artifactName: codync-macos-custom-font.${ext}
+  hardenedRuntime: false
+  identity: null
+  notarize: false
+  extraResources:
+    - from: build/native/codync-host
+      to: codync-host
+  extraFiles: []

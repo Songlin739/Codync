@@ -7,7 +7,7 @@ import { Dialog, ModalHeader, SheetPage, useDismiss } from '../../components/Ove
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { errorText, fillDefaults, newDraft } from './drafts'
+import { errorText, fillDefaults, newDraft, renameGroupRoster } from './drafts'
 import { AutoTextArea } from './parts'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
@@ -61,10 +61,12 @@ export function GroupEditorView({ group }: { group: Bot }) {
   }
 
   const save = () => {
+    const finalName = name.trim() || defaultName
     setSaving(true)
     setError(null)
     store
-      .updateGroup({ id: group.id, kind: 'group', name: name.trim() || defaultName, description: about.trim(), members, pinned: current?.pinned })
+      .updateGroup({ id: group.id, kind: 'group', name: finalName, description: about.trim(), members, pinned: current?.pinned })
+      .then(() => renameGroupRoster(store, members, group.name, finalName))
       .then(dismiss)
       .catch((e: unknown) => setError(errorText(e)))
       .finally(() => setSaving(false))

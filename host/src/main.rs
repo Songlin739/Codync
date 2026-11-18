@@ -29,6 +29,7 @@ mod screen;
 mod send_cli;
 mod service;
 mod shell;
+mod social;
 mod store;
 mod tui;
 mod update;

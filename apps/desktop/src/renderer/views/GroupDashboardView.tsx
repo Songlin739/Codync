@@ -1,12 +1,14 @@
 import { HStack, Spacer, VStack } from '../components/Stack'
 import { Text } from '../components/Text'
 import { IconButton } from '../components/Controls'
-import { useStore } from '../store/context'
+import { useApp, useStore } from '../store/context'
 import { useModels } from '../lib/observable'
 import { useDark } from '../lib/theme'
 import { useTr } from '../lib/use-language'
 import type { Bot } from '@shared/models'
-import { PALETTE, branchPath, kindOf, signal, statusLabel, worstKind } from './dashboard-shared'
+import { FileManagerPanel } from './FileManagerPanel'
+import { GroupTaskBoard } from './GroupTaskBoard'
+import { PALETTE, branchPath, kindOf, signal, statsCaption, statusLabel, useBotStats, worstKind } from './dashboard-shared'
 import './dashboard.css'
 
 const MAX_LEAVES = 6
@@ -18,19 +20,24 @@ function spread(count: number, top: number, bottom: number): number[] {
 }
 
 /** One group's own status board: the same mind-map style as the account-wide Dashboard, but with
- * just this group at the root and its members as the one level of leaves underneath — opened from
- * the dashboard icon beside the group's name in its title pill. */
-export function GroupDashboardView({ group, onClose, onSelectMember }: { group: Bot; onClose: () => void; onSelectMember: (id: string) => void }) {
+ * just this group at the root and its members as the one level of leaves underneath. Lives as a
+ * persistent third column beside a group's chat; `onClose`, when given, draws a close button (the
+ * standalone, dismissible presentation an older version used). */
+export function GroupDashboardView({ group, onClose, onSelectMember }: { group: Bot; onClose?: () => void; onSelectMember: (id: string) => void }) {
   const tr = useTr()
   const store = useStore()
+  const app = useApp()
   const dark = useDark()
   useModels([store])
   const allMembers = store.members(group)
   const overflow = Math.max(0, allMembers.length - MAX_LEAVES)
   const members = allMembers.slice(0, MAX_LEAVES)
+  const stats = useBotStats(store, allMembers.map((m) => m.id))
 
   const width = 620
-  const height = Math.max(220, members.length * 46)
+  // Just tall enough for the leaves themselves — a floor that assumed room for a full MAX_LEAVES
+  // left a wide dead band above the activity/signal cards for a group with only one or two bots.
+  const height = Math.max(150, members.length * 46)
   const rootX = 64
   const rootY = height / 2
   const leafX = 440
@@ -42,12 +49,13 @@ export function GroupDashboardView({ group, onClose, onSelectMember }: { group: 
   const log = active.slice(0, 6)
 
   return (
-    <VStack gap={16} className="dashboard-view">
+    <VStack gap={10} className="dashboard-view dashboard-view-column">
       <HStack>
         <Text size="body" weight="semibold">{group.name}</Text>
         <Spacer />
-        <IconButton title={tr('Close dashboard')} icon="xmark" onClick={onClose} />
+        {onClose ? <IconButton title={tr('Close dashboard')} icon="xmark" onClick={onClose} /> : null}
       </HStack>
+      <VStack gap={10} className="dashboard-upper">
       {members.length === 0 ? (
         <Text as="div" size="callout" tone="secondary" className="outlined-card dashboard-empty">
           {tr('No bots in this group yet.')}
@@ -77,7 +85,7 @@ export function GroupDashboardView({ group, onClose, onSelectMember }: { group: 
               const p = PALETTE[kindOf(member)][dark ? 'dark' : 'light']
               const ly = leafYs[i]!
               return (
-                <g key={member.id} className="dashboard-node" onClick={() => { onSelectMember(member.id); onClose() }}>
+                <g key={member.id} className={`dashboard-node${kindOf(member) === 'error' ? ' dashboard-node-error' : ''}`} onClick={() => { onSelectMember(member.id); onClose?.() }}>
                   <circle cx={leafX} cy={ly} r={34} fill={p.glow} opacity={0.2} />
                   <circle cx={leafX} cy={ly} r={23} fill={p.fill} stroke={p.stroke} strokeWidth={2} />
                   <text x={leafX} y={ly - 3} textAnchor="middle" fontSize={11} fontWeight={500} fill={p.text}>
@@ -97,7 +105,7 @@ export function GroupDashboardView({ group, onClose, onSelectMember }: { group: 
           ) : null}
           <HStack gap={10} align="flex-start" className="dashboard-panels">
             <VStack gap={6} className="dashboard-panel dashboard-log" grow>
-              <Text size="caption" tone="secondary">{tr('Live activity')}</Text>
+              <Text size="caption" tone="secondary" className="dashboard-panel-heading">{tr('Live activity')}</Text>
               {log.length === 0 ? (
                 <Text size="callout" tone="secondary">{tr('All quiet right now.')}</Text>
               ) : (
@@ -111,12 +119,16 @@ export function GroupDashboardView({ group, onClose, onSelectMember }: { group: 
               )}
             </VStack>
             <VStack gap={6} className="dashboard-panel dashboard-signals">
-              <Text size="caption" tone="secondary">{tr('Signal strength')}</Text>
+              <Text size="caption" tone="secondary" className="dashboard-panel-heading">{tr('Signal strength')}</Text>
               {members.map((member) => {
                 const kind = kindOf(member)
+                const caption = statsCaption(stats[member.id])
                 return (
                   <VStack key={member.id} gap={2}>
-                    <Text size="caption" tone={kind === 'error' ? 'danger' : kind === 'needsInput' ? 'attention' : 'secondary'} lines={1}>{member.name}</Text>
+                    <HStack gap={6}>
+                      <Text size="caption" tone={kind === 'error' ? 'danger' : kind === 'needsInput' ? 'attention' : 'secondary'} lines={1} grow>{member.name}</Text>
+                      {caption ? <Text size="caption2" tone="tertiary">{caption}</Text> : null}
+                    </HStack>
                     <div className="dashboard-bar-track">
                       <div className={`dashboard-bar-fill dashboard-bar-${kind}`} style={{ width: `${Math.round(signal(kind) * 100)}%` }} />
                     </div>
@@ -125,8 +137,13 @@ export function GroupDashboardView({ group, onClose, onSelectMember }: { group: 
               })}
             </VStack>
           </HStack>
+          <GroupTaskBoard group={group} />
         </>
       )}
+      </VStack>
+      <div className="dashboard-files">
+        <FileManagerPanel members={group.members} title={tr('Group files')} onOpen={(ref) => app.select(ref)} />
+      </div>
     </VStack>
   )
 }

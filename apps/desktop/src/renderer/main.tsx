@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import './styles/theme.css'
 import { ChatWindow } from './views/ChatWindow'
+import { DashboardWindow } from './views/DashboardWindow'
 import { PairingWindow } from './views/PairingWindow'
 import { RenderBoundary } from './views/RenderBoundary'
 import { IslandWindow } from './views/island/IslandWindow'
@@ -36,13 +37,16 @@ if (page === 'island') {
   island.start()
   root.render(<IslandWindow model={island} />)
 } else {
-  // The pairing window only needs this computer's host, not a mirror of its bots.
+  // The pairing window only needs this computer's host, not a mirror of its bots. The Dashboard
+  // window needs the full mirror (every computer's roster), same as the chat window.
   const app = new AppModel(page !== 'pairing')
   void app.start()
   if (page !== 'pairing') void account.start()
   root.render(
     <RenderBoundary>
-      <AppContext.Provider value={app}>{page === 'pairing' ? <PairingWindow /> : <ChatWindow />}</AppContext.Provider>
+      <AppContext.Provider value={app}>
+        {page === 'pairing' ? <PairingWindow /> : page === 'dashboard' ? <DashboardWindow /> : <ChatWindow />}
+      </AppContext.Provider>
     </RenderBoundary>,
   )
 }

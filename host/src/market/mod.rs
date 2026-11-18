@@ -34,6 +34,7 @@ mod custom;
 mod install;
 mod registry;
 mod remote_update;
+mod share;
 mod skills;
 mod updates;
 
@@ -41,6 +42,7 @@ pub use connector_update::update_connector;
 pub use custom::add_custom_connector;
 pub use install::{import_connectors, install_connector, list_connectors, remove_connector};
 pub use registry::{browse_connectors, connector_info, refresh_first_page};
+pub use share::{Conflict as SkillConflict, SkillPackage, export as export_skill, import as import_skill};
 pub use skills::{
     add_custom_skill, browse_skills, expand_command, install_skill, list_skills, remove_skill, skill_details,
     skills_brief, slash_command, turn_on_installed_once, update_custom_skill,

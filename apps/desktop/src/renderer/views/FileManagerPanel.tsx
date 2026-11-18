@@ -18,14 +18,18 @@ interface Found {
   ref: RosterItem
 }
 
-/** The account's file manager: every artifact and shared file across every group and bot, newest
+/**
+ * The account's file manager: every artifact and shared file across every group and bot, newest
  * first — the sidebar's bottom half, under the groups on top. Opening a row jumps to the chat it
- * came from (its own Library there has the rest: rename, download, share). */
-export function FileManagerPanel({ onOpen }: { onOpen: (ref: RosterItem['ref']) => void }) {
+ * came from (its own Library there has the rest: rename, download, share). With `members`, narrows
+ * this down to just those bots' own files — a group's dashboard column embeds it this way, scoped
+ * to its own roster, with the same click-to-open.
+ */
+export function FileManagerPanel({ onOpen, members, title }: { onOpen: (ref: RosterItem['ref']) => void; members?: string[]; title?: string }) {
   const tr = useTr()
   const app = useApp()
   useModels([...app.stores.values()])
-  const roster = app.roster
+  const roster = members ? app.roster.filter((ref) => members.includes(ref.ref.botId)) : app.roster
   const [found, setFound] = useState<Found[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -60,7 +64,7 @@ export function FileManagerPanel({ onOpen }: { onOpen: (ref: RosterItem['ref']) 
 
   return (
     <VStack gap={8} className="file-manager">
-      <Text size="caption" weight="semibold" tone="secondary" className="file-manager-title">{tr('Files')}</Text>
+      <Text size="caption" weight="semibold" tone="secondary" className="file-manager-title">{tr(title ?? 'Files')}</Text>
       {error ? (
         <Text size="caption2" tone="danger" role="alert" className="file-manager-empty">{error}</Text>
       ) : found.length === 0 ? (

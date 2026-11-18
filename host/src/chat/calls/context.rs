@@ -328,6 +328,7 @@ pub(crate) mod tests {
             id: id.into(),
             kind: BotKind::Agent,
             members: vec![],
+            primary_contact: None,
             name: name.into(),
             description: "Keeps the shop's site running".into(),
             avatar_color: "blue".into(),

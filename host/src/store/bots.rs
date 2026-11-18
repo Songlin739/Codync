@@ -213,6 +213,7 @@ mod tests {
             id: "b1".into(),
             kind: BotKind::Agent,
             members: vec![],
+            primary_contact: None,
             name: "Rev".into(),
             description: String::new(),
             avatar_color: "blue".into(),

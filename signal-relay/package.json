@@ -1,0 +1,21 @@
+{
+  "name": "super-signal-relay",
+  "version": "0.1.0",
+  "description": "Super's friend-to-friend WebRTC signaling relay (Cloudflare Worker + Durable Object). Forwards offer/answer/ICE between two peers' own computers; never sees message, file or call content, which only flows after the two sides connect directly.",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260925.1",
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.75.0",
+    "ws": "^8.23.0"
+  },
+  "private": true,
+  "license": "Apache-2.0"
+}

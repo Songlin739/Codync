@@ -6,8 +6,8 @@ import { useModels } from '../lib/observable'
 import { useDark } from '../lib/theme'
 import { useTr } from '../lib/use-language'
 import { isGroup } from '@shared/models'
-import type { RosterItem } from '../store/app-model'
-import { PALETTE, branchPath, kindOf, signal, statusLabel, worstKind, type Kind } from './dashboard-shared'
+import { refKey, type BotRef, type RosterItem } from '../store/app-model'
+import { PALETTE, branchPath, kindOf, signal, statsCaption, statusLabel, useBotStatsAcross, worstKind, type Kind } from './dashboard-shared'
 import './dashboard.css'
 
 const MAX_BRANCHES = 5
@@ -32,10 +32,13 @@ function spread(count: number, top: number, bottom: number): number[] {
 /** Live status board: a mind-map of the account down to every group and its bots — Codync at the
  * root, a branch per group (plus a dashed branch for bots in no group), colored by the loudest
  * status underneath it — with a real-time activity log and per-bot signal strength underneath.
- * Reuses the same observable roster the sidebar already keeps in sync; nothing here is polled. */
-export function DashboardView({ onClose }: { onClose: () => void }) {
+ * Reuses the same observable roster the sidebar already keeps in sync; nothing here is polled.
+ * `ownWindow` (the Dashboard's own window, which has no chat of its own in the same renderer process)
+ * sends a node's click to the chat window instead of this process's own (otherwise unused) selection. */
+export function DashboardView({ onClose, ownWindow = false }: { onClose?: () => void; ownWindow?: boolean }) {
   const tr = useTr()
   const app = useApp()
+  const open = (ref: BotRef) => (ownWindow ? window.codync.app.openBotInChat(refKey(ref)) : app.select(ref))
   const dark = useDark()
   useModels([...app.stores.values()])
   const roster = app.roster
@@ -63,7 +66,9 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
   const totalBots = roster.length
 
   const width = 760
-  const height = Math.max(260, branches.length * 64)
+  // Just tall enough for the branches themselves — a floor sized for a full MAX_BRANCHES left a wide
+  // dead band above the activity/signal cards for an account with only one or two groups.
+  const height = Math.max(170, branches.length * 64)
   const rootX = 70
   const rootY = height / 2
   const branchX = 330
@@ -73,13 +78,14 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
   const hub = dark ? PALETTE.hub.dark : PALETTE.hub.light
   const active = [...roster].filter((i) => i.bot.status !== 'idle').sort((a, b) => signal(kindOf(b.bot)) - signal(kindOf(a.bot)))
   const log = active.slice(0, 6)
+  const stats = useBotStatsAcross(shown)
 
   return (
-    <VStack gap={16} className="dashboard-view">
+    <VStack gap={10} className="dashboard-view">
       <HStack>
         <Text size="body" weight="semibold">{tr('Dashboard')}</Text>
         <Spacer />
-        <IconButton title={tr('Close dashboard')} icon="xmark" onClick={onClose} />
+        {onClose ? <IconButton title={tr('Close dashboard')} icon="xmark" onClick={onClose} /> : null}
       </HStack>
       {roster.length === 0 ? (
         <Text as="div" size="callout" tone="secondary" className="outlined-card dashboard-empty">
@@ -130,10 +136,10 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
               return (
                 <g key={`nodes-${branch.key}`}>
                   <g
-                    className="dashboard-node"
+                    className={`dashboard-node${kind === 'error' ? ' dashboard-node-error' : ''}`}
                     onClick={() => {
-                      if (branch.group) app.select(branch.group.ref)
-                      onClose()
+                      if (branch.group) open(branch.group.ref)
+                      onClose?.()
                     }}
                     style={{ cursor: branch.group ? 'pointer' : 'default' }}
                   >
@@ -162,10 +168,10 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
                     return (
                       <g
                         key={child.ref.botId}
-                        className="dashboard-node"
+                        className={`dashboard-node${kindOf(child.bot) === 'error' ? ' dashboard-node-error' : ''}`}
                         onClick={() => {
-                          app.select(child.ref)
-                          onClose()
+                          open(child.ref)
+                          onClose?.()
                         }}
                       >
                         <circle cx={leafX} cy={ly} r={30} fill={cp.glow} opacity={0.2} />
@@ -190,7 +196,7 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
           ) : null}
           <HStack gap={10} align="flex-start" className="dashboard-panels">
             <VStack gap={6} className="dashboard-panel dashboard-log" grow>
-              <Text size="caption" tone="secondary">{tr('Live activity')}</Text>
+              <Text size="caption" tone="secondary" className="dashboard-panel-heading">{tr('Live activity')}</Text>
               {log.length === 0 ? (
                 <Text size="callout" tone="secondary">{tr('All quiet right now.')}</Text>
               ) : (
@@ -204,12 +210,16 @@ export function DashboardView({ onClose }: { onClose: () => void }) {
               )}
             </VStack>
             <VStack gap={6} className="dashboard-panel dashboard-signals">
-              <Text size="caption" tone="secondary">{tr('Signal strength')}</Text>
+              <Text size="caption" tone="secondary" className="dashboard-panel-heading">{tr('Signal strength')}</Text>
               {shown.map((item) => {
                 const kind = kindOf(item.bot)
+                const caption = statsCaption(stats[item.ref.botId])
                 return (
                   <VStack key={item.ref.botId} gap={2}>
-                    <Text size="caption" tone={kind === 'error' ? 'danger' : kind === 'needsInput' ? 'attention' : 'secondary'} lines={1}>{item.bot.name}</Text>
+                    <HStack gap={6}>
+                      <Text size="caption" tone={kind === 'error' ? 'danger' : kind === 'needsInput' ? 'attention' : 'secondary'} lines={1} grow>{item.bot.name}</Text>
+                      {caption ? <Text size="caption2" tone="tertiary">{caption}</Text> : null}
+                    </HStack>
                     <div className="dashboard-bar-track">
                       <div className={`dashboard-bar-fill dashboard-bar-${kind}`} style={{ width: `${Math.round(signal(kind) * 100)}%` }} />
                     </div>

@@ -151,7 +151,7 @@ async fn add_member(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<
         .store
         .bot(&group_id)?
         .filter(|r| !r.deleted)
-        .is_some_and(|r| r.config.members.iter().any(|m| *m == target_id));
+        .is_some_and(|r| r.config.members.contains(&target_id));
     if already {
         return Ok(json!({"botId": target_id, "group": group_id, "added": false}));
     }

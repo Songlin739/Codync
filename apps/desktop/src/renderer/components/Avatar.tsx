@@ -227,11 +227,13 @@ export function drawCharacter(
   }
 }
 
-/** A bot's face, as it stands outside its chat: its items at work and their cards count (iPhone `Bot.mood`). */
+/** A bot's face, as it stands outside its chat: its items at work and their cards count (iPhone `Bot.mood`),
+ *  or its own trouble (`failed`) — the dot-grid face's distinct unhappy eyes, used nowhere until now even
+ *  though the mood has existed since the face was drawn. */
 export function moodOf(bot: Bot, animated = true): Mood {
   if (!animated) return 'idle'
   const status = outsideStatus(bot)
-  return status === 'needsInput' ? 'needsInput' : status === 'working' ? 'working' : 'idle'
+  return status === 'error' ? 'failed' : status === 'needsInput' ? 'needsInput' : status === 'working' ? 'working' : 'idle'
 }
 
 export function BotAvatar({ bot, size = 40, animated = true }: { bot: Bot; size?: number; animated?: boolean }) {
@@ -306,7 +308,11 @@ export function AvatarWithStatus({ bot, members = [], size = 44, agent = null }:
         </span>
       ) : null}
       {bot.lead ? <LeadAgentBadge size={Math.max(12, size * 0.34)} /> : null}
-      {outsideStatus(bot) === 'needsInput' ? (
+      {outsideStatus(bot) === 'error' ? (
+        <div className="avatar-badge error" style={{ width: size * 0.36, height: size * 0.36 }}>
+          <Icon name="exclamationmark" size={size * 0.2} weight="black" scaled={false} />
+        </div>
+      ) : outsideStatus(bot) === 'needsInput' ? (
         <div className="avatar-badge needs-you" style={{ width: size * 0.36, height: size * 0.36 }}>
           <Icon name="exclamationmark" size={size * 0.2} weight="black" scaled={false} />
         </div>

@@ -313,6 +313,10 @@ export interface CodyncBridge {
     setTraySummary(summary: TraySummary): void
     /** Brings the chat window forward (a phone waits for this computer to let it in). */
     showWindow(): void
+    /** Opens (or brings forward) the standalone Dashboard window. */
+    openDashboard(): void
+    /** From the standalone Dashboard window: brings the chat window forward with this bot selected. */
+    openBotInChat(ref: string): void
     onCommand(cb: (command: WindowCommand) => void): () => void
     resetAllData(): Promise<void>
     setLaunchAtLogin(on: boolean): Promise<boolean>

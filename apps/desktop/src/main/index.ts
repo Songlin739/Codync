@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { app, autoUpdater, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, shell, type IpcMainInvokeEvent, type OpenDialogOptions } from 'electron'
 import type { HostSnapshot, TraySummary, WindowCommand } from '../shared/ipc'
 import { chatWindowMinWidth } from '../shared/chat-layout'
-import { devPort, HostController } from './host-controller'
+import { devPort, HostController, prefs } from './host-controller'
 import { registerFileSaves } from './file-saves'
 import { keepArtifactsInFrame, registerArtifacts, registerArtifactScheme } from './artifacts'
 import { registerRemoteKeyboard } from './remote-keyboard'
@@ -62,6 +62,7 @@ const account = new AccountService()
 const updates = new Updates(host)
 let chat: BrowserWindow | null = null
 let pairing: BrowserWindow | null = null
+let dashboardWindow: BrowserWindow | null = null
 const quitLifecycle = new QuitLifecycle(app, autoUpdater)
 const isMac = process.platform === 'darwin'
 
@@ -105,6 +106,41 @@ function openChat() {
   keepArtifactsInFrame(chat.webContents)
   void chat.loadURL(rendererURL('chat'))
   return chat
+}
+
+/** Remembered position/size of the standalone Dashboard window, across launches. */
+const DASHBOARD_BOUNDS_KEY = 'dashboardBounds'
+
+/**
+ * The account-wide Dashboard, as its own freely-movable window — opened automatically alongside the
+ * chat window whenever the account is, so it can sit beside the chat while the user works and watches
+ * at the same time. Its position and size persist across launches (`prefs`), like the chat window's own
+ * last-closed state; unlike the chat window, closing this one really closes it (no hide-to-background).
+ */
+function openDashboard() {
+  if (dashboardWindow) {
+    present(dashboardWindow)
+    return dashboardWindow
+  }
+  const saved = prefs.get(DASHBOARD_BOUNDS_KEY) as { x: number; y: number; width: number; height: number } | undefined
+  dashboardWindow = new BrowserWindow({
+    ...(saved ?? { width: 760, height: 620 }),
+    minWidth: 480,
+    minHeight: 360,
+    title: 'Dashboard',
+    show: false,
+    backgroundColor: background(),
+    // A plain native title bar: simplest way to get a draggable, closable, resizable window without
+    // a custom-drawn drag region (the chat window's floating-pill header needs one; this doesn't).
+    webPreferences: webPreferences(join(__dirname, '../preload/index.js')),
+  })
+  const persistBounds = () => dashboardWindow && prefs.set(DASHBOARD_BOUNDS_KEY, dashboardWindow.getBounds())
+  dashboardWindow.on('resize', persistBounds)
+  dashboardWindow.on('move', persistBounds)
+  dashboardWindow.once('ready-to-show', () => dashboardWindow && present(dashboardWindow, Boolean(process.env.CODYNC_SHOW_INACTIVE)))
+  dashboardWindow.on('closed', () => (dashboardWindow = null))
+  void dashboardWindow.loadURL(rendererURL('dashboard'))
+  return dashboardWindow
 }
 
 function openPairing() {
@@ -180,6 +216,12 @@ function registerIPC(tray: Tray) {
     openChat()
     activate()
   })
+  ipcMain.on('app:openDashboard', () => {
+    openDashboard()
+    activate()
+  })
+  // A node clicked in the standalone Dashboard window: bring the chat window forward, there, selected.
+  ipcMain.on('app:openBotInChat', (_e, ref: string) => send({ kind: 'openBot', ref }))
   ipcMain.handle('app:showInDock', () => showInDock())
   ipcMain.handle('app:setShowInDock', (_e, on: boolean) => {
     const visible = setShowInDock(on)
@@ -264,9 +306,13 @@ if (yieldsToInstall()) {
     })
     nativeTheme.on('updated', () => {
       // Only the opaque windows: a color on the transparent notch island paints its whole panel.
-      for (const w of [chat, pairing]) w?.setBackgroundColor(background())
+      for (const w of [chat, pairing, dashboardWindow]) w?.setBackgroundColor(background())
     })
     host.start()
     openChat()
+    // Alongside the chat window, every time the account/app itself is opened — not on every later
+    // `openChat()` (activating from the dock, a second instance, the tray), so it opens once a
+    // launch and the user's own close of it is otherwise respected for the rest of that session.
+    openDashboard()
   })
 }

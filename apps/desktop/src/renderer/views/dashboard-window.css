@@ -1,0 +1,7 @@
+/* The Dashboard's own standalone window: the view fills it, with a little breathing room. */
+.dashboard-window {
+  height: 100vh;
+  padding: 10px 14px;
+  overflow-y: auto;
+  background: var(--background);
+}

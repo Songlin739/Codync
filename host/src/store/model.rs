@@ -62,6 +62,13 @@ pub struct BotConfig {
     /// A group's bots, in the order they were added.
     #[serde(default)]
     pub members: Vec<String>,
+    /// A group's sole contact for the user's own messages (see `chat::group::responders`): when set, the user's
+    /// unaddressed messages (and even an @mention or reply aimed at someone else) go only to this member, never to
+    /// everyone. Bots still @mention and reply to each other freely among themselves — this only narrows who
+    /// answers the user. None for a group with no designated contact (falls back to the old "everyone, unless
+    /// @mentioned" behavior), and unused outside a group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_contact: Option<String>,
     pub name: String,
     #[serde(default)]
     pub description: String,

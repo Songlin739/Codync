@@ -3,7 +3,7 @@
 //! rules are `codync_mem::compaction`; this records what it needs and acts on what it decides.
 
 use super::{Actor, Adapter, Done, Instructions, Queued};
-use crate::chat::{context, handoff, memory};
+use crate::chat::{context, handoff, memory, stats};
 use crate::store::{BotConfig, EntryKind, Lane, Store, now_ms};
 use codync_mem::compaction::{self as rules, CacheLife, Conversation, Decision, Threshold};
 use serde_json::{Value, json};
@@ -219,14 +219,23 @@ impl Actor {
         {
             // How well the prompt cache held: the first thing to look at when a turn costs more than it should.
             let usage = &answer["usage"];
+            let (cached_read, cached_write, input) = (
+                usage["cachedReadTokens"].as_u64().unwrap_or(0),
+                usage["cachedWriteTokens"].as_u64().unwrap_or(0),
+                usage["inputTokens"].as_u64().unwrap_or(0),
+            );
             tracing::info!(
                 bot = %self.cfg.id,
                 session = self.turn_session.as_deref().unwrap_or_default(),
-                cached_read = usage["cachedReadTokens"].as_u64().unwrap_or(0),
-                cached_write = usage["cachedWriteTokens"].as_u64().unwrap_or(0),
-                input = usage["inputTokens"].as_u64().unwrap_or(0),
+                cached_read,
+                cached_write,
+                input,
                 "turn usage"
             );
+            // The Dashboard's per-bot token/speed monitoring (chat::stats): coarse and best-effort, so a bot
+            // without usage reporting (most non-Claude/Codex agents) just never accrues any.
+            let latency = stats::latency_since(self.hub.runtime(&self.cfg.id).started_at);
+            stats::record(&self.hub.store, &self.cfg.id, input, cached_read, cached_write, latency);
         }
         if !self.in_main_chat() {
             return;

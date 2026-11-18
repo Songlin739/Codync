@@ -69,3 +69,7 @@
 .computer-filter-action:hover {
   background: rgba(var(--text-rgb), 0.05);
 }
+
+.sidebar-tabs {
+  padding: 4px 10px 6px;
+}

@@ -130,7 +130,7 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, turn: &Turn, asked: &m
         let since_user = since_last_user_message(hub, lane)?;
         let since_late = turn.late.map(|seq| hub.store.messages_after(lane, seq - 1, HISTORY_LINES)).transpose()?;
         let mut spoke = 0;
-        for member in speakers(&members, &since_user, since_late.as_deref(), round, asked) {
+        for member in speakers(&members, &since_user, since_late.as_deref(), round, asked, group.primary_contact.as_deref()) {
             if !hub.groups.current(lane, turn.epoch) {
                 return Ok(());
             }
@@ -283,18 +283,20 @@ fn answers(since: &[Entry]) -> Vec<String> {
 }
 
 /// Who speaks in `round`, each round starting one member later so the same bot doesn't always speak first. The
-/// user's room turn asks who their message names (or everyone) first; a late one asks who the late answers name,
-/// looking only at messages from the oldest of them on (`since_late`).
+/// user's room turn asks who their message names (or everyone), or the group's sole `primary` contact when it has
+/// one, first; a late one asks who the late answers name, looking only at messages from the oldest of them on
+/// (`since_late`).
 fn speakers<'a>(
     members: &'a [BotConfig],
     since_user: &[Entry],
     since_late: Option<&[Entry]>,
     round: usize,
     asked: &HashMap<String, i64>,
+    primary: Option<&str>,
 ) -> Vec<&'a BotConfig> {
     let mut out = match since_late {
         Some(since) => cited(members, since, asked),
-        None if round == 0 => responders(members, since_user),
+        None if round == 0 => responders(members, since_user, primary),
         None => cited(members, since_user, asked),
     };
     if !out.is_empty() {
@@ -304,9 +306,14 @@ fn speakers<'a>(
     out
 }
 
-/// Who answers the user: the members @-mentioned or replied to since the user's last message, or
-/// everyone when nobody (or `@all` / `@everyone`) is.
-fn responders<'a>(members: &'a [BotConfig], messages: &[Entry]) -> Vec<&'a BotConfig> {
+/// Who answers the user: with a `primary` contact set, that member alone — regardless of who the user's message
+/// @-mentions, replies to, or whether it names `@all`/`@everyone`, so a group with a designated contact (its JEV,
+/// say) never lets the user reach another member directly. Without one: the members @-mentioned or replied to
+/// since the user's last message, or everyone when nobody (or `@all` / `@everyone`) is.
+fn responders<'a>(members: &'a [BotConfig], messages: &[Entry], primary: Option<&str>) -> Vec<&'a BotConfig> {
+    if let Some(primary) = primary {
+        return members.iter().filter(|m| m.id == primary).collect();
+    }
     let texts: Vec<&str> = messages.iter().filter_map(|e| e.data["text"].as_str()).collect();
     let everyone = texts.iter().any(|t| names_everyone(t));
     let replied = |m: &BotConfig| messages.iter().any(|e| e.data["replyTo"]["author"] == m.id.as_str());

@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { draftOf, isGroup, isWorking, isWorkingIn, type Bot, type BotDraft, type Entry, type ReplyQuote } from '@shared/models'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
-import { IconButton, Spinner } from '../../components/Controls'
+import { Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Sheet, usePresence } from '../../components/Overlay'
 import { HStack, IconSlot, Spacer } from '../../components/Stack'
@@ -64,7 +64,8 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
   /** The voice call whose conversation is open (its line's entry id). */
   const [callLine, setCallLine] = useState<string | null>(null)
   const [editingGroup, setEditingGroup] = useState(false)
-  const [groupDashboard, setGroupDashboard] = useState(false)
+  // A group's own dashboard is now a persistent third column, not something to open and close.
+  const group = bot && isGroup(bot) ? bot : null
   const [templateDraft, setTemplateDraft] = useState<BotDraft | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [detailsTab, setDetailsTab] = useState<DetailsTab>('details')
@@ -210,7 +211,7 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
   )
 
   return (
-    <div className="thread-view" ref={root}>
+    <div className={`thread-view ${group ? 'thread-view-group' : ''}`} ref={root}>
       <div className="conversation">
         <div className="top-chrome">
           <TopFade />
@@ -222,15 +223,6 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
           </div>
           {/* The call bar takes the pill's place; its frosted glass would show the name blurred. */}
           <div className={`title-pill-wrap ${calling ? 'hidden-by-call' : ''}`} inert={calling}>
-            {bot && isGroup(bot) ? (
-              <IconButton
-                className="title-pill-dashboard"
-                title={tr('{name} dashboard').replaceAll('{name}', bot.name)}
-                icon="chart.bar"
-                size={30}
-                onClick={() => setGroupDashboard(true)}
-              />
-            ) : null}
             <button className="title-pill" onClick={openFromTitle} aria-label={tr('{name}, view details').replaceAll('{name}', () => bot?.name ?? tr('Conversation'))} title="View conversation details">
               <HStack as="span" gap={7}>
                 {bot ? isGroup(bot) ? <GroupAvatar members={store.members(bot)} size={22} /> : <BotAvatar bot={bot} size={22} /> : null}
@@ -275,6 +267,11 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
         ) : null}
         {artifactId ? <ArtifactView botId={botId} artifactId={artifactId} close={() => setArtifactId(null)} /> : null}
       </div>
+      {group ? (
+        <div className="group-dashboard-column">
+          <GroupDashboardView group={group} onSelectMember={setBotChat} />
+        </div>
+      ) : null}
       <ChatSidePanel
         open={panelOpen}
         width={panelWidth(detailsWidth)}
@@ -302,9 +299,6 @@ export const ThreadView = memo(function ThreadView({ botId, request = null }: { 
       </Sheet>
       <Sheet open={editingGroup} onClose={() => setEditingGroup(false)} width={420} height={560}>
         {bot ? <GroupEditorView group={bot} /> : null}
-      </Sheet>
-      <Sheet open={groupDashboard} onClose={() => setGroupDashboard(false)} width={560} height={560}>
-        {bot && isGroup(bot) ? <GroupDashboardView group={bot} onClose={() => setGroupDashboard(false)} onSelectMember={setBotChat} /> : null}
       </Sheet>
       <FormSheet open={!!member} onClose={() => setEditingMember(null)} width={520} height={680} fixed>
         {member ? <BotEditorView key={member.id} draft={draftOf(member)} /> : null}

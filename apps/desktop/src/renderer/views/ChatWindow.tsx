@@ -5,7 +5,7 @@ import { detailMinWidth, sidebarMinWidth } from '@shared/chat-layout'
 import { draftOf, isGroup, type Bot, type BotDraft } from '@shared/models'
 import { allWork, isLive } from '@shared/work'
 import { CharacterAvatar } from '../components/Avatar'
-import { Button, IconButton, ResizeHandle } from '../components/Controls'
+import { Button, IconButton, ResizeHandle, TabChoice } from '../components/Controls'
 import { Dialog, ModalHeader, Sheet } from '../components/Overlay'
 import { AnchoredMenu, type MenuItem } from '../components/Menu'
 import { HStack, Spacer } from '../components/Stack'
@@ -21,6 +21,7 @@ import { useComputerRoster } from '../store/computer-roster'
 import { AllWorkButton, AllWorkSheet } from './AllWorkView'
 import { BotRoster } from './BotRoster'
 import { ExtensionsMovedTip } from './ExtensionsMovedTip'
+import { FriendsPanel } from './FriendsPanel'
 import { RailAccountNotice, SidebarFooter } from './SidebarFooter'
 import { UpdateBadge } from './UpdateButton'
 import { ComputerFilterHeader, computerSelection } from './ComputerFilterHeader'
@@ -30,7 +31,6 @@ import { NewBotView, NewGroupView } from './bots/NewBotView'
 import { ImportBotsSheet } from './bots/ImportBotsView'
 import { BotEditorView } from './bots/BotEditorView'
 import { MarketplaceView } from './marketplace/MarketplaceView'
-import { DashboardView } from './DashboardView'
 import { FileManagerPanel } from './FileManagerPanel'
 import { ScreenViewer } from './screen/ScreenViewer'
 import { SignInCodeDialog } from './marketplace/ConnectorSheets'
@@ -210,6 +210,9 @@ function ChatSplitView() {
   const [sidebarWidth, setSidebarWidth] = usePref(prefs.sidebarWidth)
   const [hidden, setHidden] = usePref(prefs.hiddenComputers)
   const [searching, setSearching] = useState(false)
+  // 消息 (this account's conversations) vs 通讯录 (friends — 设计文档 "左侧栏与好友系统"); rail mode
+  // (compact) has no room for the switcher and just keeps showing messages.
+  const [sidebarTab, setSidebarTab] = useState<'messages' | 'contacts'>('messages')
   // Find in the open conversation (⌘F).
   const find = useFindBar(app.selection ? refKey(app.selection) : null)
   const [creating, setCreating] = useState<CreateTarget | null>(null)
@@ -222,7 +225,6 @@ function ChatSplitView() {
   const [confirmDelete, setConfirmDelete] = useState<BotTarget | null>(null)
   const [newSessionBot, setNewSessionBot] = useState<BotTarget | null>(null)
   const [marketplace, setMarketplace] = useState<string | null>(null)
-  const [dashboard, setDashboard] = useState(false)
   const [settings, setSettings] = useState<SettingsPage | null>(null)
   const openVoiceSettings = useCallback(() => setSettings('voice'), [])
   const [showAccount, setShowAccount] = useState(false)
@@ -424,6 +426,15 @@ function ChatSplitView() {
             </HStack>
           </div>
         ) : null}
+        {!compact ? (
+          <div className="sidebar-tabs no-drag">
+            <TabChoice label="Sidebar section" selection={sidebarTab} onChange={setSidebarTab}
+              options={[{ id: 'messages', label: tr('Messages') }, { id: 'contacts', label: tr('Contacts') }]} />
+          </div>
+        ) : null}
+        {sidebarTab === 'contacts' && !compact ? (
+          <FriendsPanel />
+        ) : (
         <div className="roster" ref={listRef} tabIndex={0} onKeyDown={onListKey}>
           {roster.grouped && !compact ? <ExtensionsMovedTip /> : null}
           <BotRoster roster={compact ? roster : groupRoster} compact={compact}
@@ -444,7 +455,8 @@ function ChatSplitView() {
             </div>
           ) : null}
         </div>
-        {compact ? null : (
+        )}
+        {compact || sidebarTab === 'contacts' ? null : (
           <FileManagerPanel onOpen={(ref) => app.select(ref)} />
         )}
         {compact ? (
@@ -454,7 +466,7 @@ function ChatSplitView() {
             <IconButton title="New" icon="plus" size={36} buttonRef={railNewButton} menuOpen={railNewMenu} disabled={!onlineStores.length} onClick={() => setRailNewMenu((o) => !o)} />
             <AnchoredMenu open={railNewMenu} onClose={() => setRailNewMenu(false)} anchor={railNewButton} items={newItems} />
             <IconButton title="Extensions" icon="square.grid.2x2" size={36} onClick={openMarketplace} />
-            <IconButton title="Dashboard" icon="chart.bar" size={36} onClick={() => setDashboard(true)} />
+            <IconButton title="Dashboard" icon="chart.bar" size={36} onClick={() => window.codync.app.openDashboard()} />
             <UpdateBadge size={32} />
             <RailAccountNotice />
             <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label="Open account menu for Account" title="Account" onClick={() => setShowAccount((s) => !s)}>
@@ -463,7 +475,7 @@ function ChatSplitView() {
           </div>
         ) : (
           // With several computers each heading opens its own Extensions instead.
-          <SidebarFooter accountOpen={showAccount} onAccount={() => setShowAccount((s) => !s)} onExtensions={roster.grouped ? undefined : openMarketplace} onDashboard={() => setDashboard(true)} />
+          <SidebarFooter accountOpen={showAccount} onAccount={() => setShowAccount((s) => !s)} onExtensions={roster.grouped ? undefined : openMarketplace} onDashboard={() => window.codync.app.openDashboard()} />
         )}
       </aside>
       <ResizeHandle label={tr('Resize sidebar')} width={width} min={76} max={sidebarMax} edge="trailing" onResize={resizeSidebar} onDragging={setResizing} />
@@ -531,9 +543,6 @@ function ChatSplitView() {
             <MarketplaceView key={marketplace} />
           </StoreContext.Provider>
         ) : null}
-      </Sheet>
-      <Sheet open={dashboard} onClose={() => setDashboard(false)} width={Math.min(920, windowSize.width - 80)} height={sheetHeight} dismissOnDim>
-        {dashboard ? <DashboardView onClose={() => setDashboard(false)} /> : null}
       </Sheet>
       <Sheet open={settings !== null} onClose={() => setSettings(null)} width={Math.min(800, windowSize.width - 80)} height={Math.min(620, sheetHeight)}>
         {settings ? <SettingsView page={settings} setPage={setSettings} /> : null}

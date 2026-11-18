@@ -2,6 +2,30 @@
   padding: 4px 2px 8px;
 }
 
+/* A group's dashboard as a persistent third column (ThreadView's `.group-dashboard-column`):
+   fills the height, with the bottom 25% given over to the group's own files. Only `.dashboard-view-column`
+   (the persistent column) reserves that 25% — the standalone Sheet presentation (`onClose` given) sizes
+   to its own fixed modal height instead, so this split isn't forced there. */
+.dashboard-view-column {
+  height: 100%;
+}
+.dashboard-view-column .dashboard-upper {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.dashboard-view-column .dashboard-files {
+  flex: 0 0 25%;
+  height: 25%;
+}
+.dashboard-files {
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 0.5px solid var(--border);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
 .dashboard-empty {
   padding: 24px;
   text-align: center;
@@ -19,6 +43,19 @@
   stroke-width: 3;
 }
 
+/* Bot异常红色警示: the glow ring behind an errored bot's node pulses, so trouble reads at a
+   glance instead of blending into the tree's other static colors. */
+.dashboard-node-error circle:first-child {
+  animation: dashboard-node-error-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dashboard-node-error-pulse {
+  0%, 100% { opacity: 0.18; }
+  50% { opacity: 0.5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-node-error circle:first-child { animation: none; }
+}
+
 .dashboard-overflow {
   text-align: center;
 }
@@ -27,10 +64,25 @@
   align-items: stretch;
 }
 
+/* The persistent group column is much narrower than the standalone Dashboard window these panels
+   were designed for. Side by side with a 220px-fixed signals panel, the log panel had almost no
+   room left and its text wrapped one word per line. Stack them instead. */
+.dashboard-view-column .dashboard-panels {
+  flex-direction: column;
+}
+.dashboard-view-column .dashboard-signals {
+  width: auto;
+}
+
 .dashboard-panel {
   background: var(--bubble-user);
   border-radius: var(--radius-m);
   padding: 10px 12px;
+}
+
+.dashboard-panel-heading {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .dashboard-log {

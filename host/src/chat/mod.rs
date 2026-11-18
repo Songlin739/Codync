@@ -22,6 +22,7 @@ pub mod prompt;
 pub mod reactions;
 pub mod replies;
 pub mod skills;
+pub mod stats;
 pub mod tasks;
 pub mod team;
 pub mod uploads;

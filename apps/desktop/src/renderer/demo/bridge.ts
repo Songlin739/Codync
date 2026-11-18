@@ -129,6 +129,8 @@ const bridge: CodyncBridge = {
     readClipboardFiles: async () => [],
     setTraySummary() {},
     showWindow() {},
+    openDashboard() {},
+    openBotInChat() {},
     onCommand: none,
     resetAllData: async () => {},
     setLaunchAtLogin: async () => false,

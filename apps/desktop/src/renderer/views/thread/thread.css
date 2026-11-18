@@ -4,6 +4,28 @@
   height: 100%;
   overflow: hidden;
 }
+
+/* A group chat's persistent third column: its own dashboard, always visible beside the thread
+   (replaces the old dashboard-icon-and-Sheet overlay). */
+.group-dashboard-column {
+  flex: none;
+  width: 400px;
+  height: 100%;
+  padding: 14px 16px;
+  overflow: hidden;
+  border-left: 0.5px solid var(--border);
+  background: var(--background);
+}
+
+/* A group's thread sits tighter and left-aligned, not centered in a narrow reading column — there's
+   a dashboard column doing that job on the right already. A somewhat narrower cap than fully
+   unbounded keeps long lines readable instead of stretching edge to edge. */
+.thread-view-group .transcript-content,
+.thread-view-group .composer {
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+}
 .conversation {
   /* Chat text follows the selected size without an extra platform offset. */
   --conversation: var(--chat);

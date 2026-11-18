@@ -146,6 +146,17 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "botConversation" => {
             json!({"entries": hub.store.bot_conversation(str_arg(&b, "botId")?, str_arg(&b, "peerId")?, 200)?})
         }
+        // The Dashboard's per-bot token/latency monitoring (chat::stats): coarse, best-effort counters, one bot
+        // or several (a group's members) in one call.
+        "botStats" => {
+            let ids: Vec<String> = match b["botIds"].as_array() {
+                Some(list) => list.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect(),
+                None => vec![str_arg(&b, "botId")?.to_owned()],
+            };
+            let stats: std::collections::HashMap<String, crate::chat::stats::BotStats> =
+                ids.into_iter().map(|id| (id.clone(), crate::chat::stats::read(&hub.store, &id))).collect();
+            json!({"stats": stats})
+        }
         "createBot" => {
             let mut b = b;
             // Only a bot's `create_bot` records who made one.

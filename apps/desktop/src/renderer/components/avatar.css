@@ -40,6 +40,20 @@
 .avatar-badge.unread {
   background: var(--accent-fill);
 }
+.avatar-badge.error {
+  display: grid;
+  place-items: center;
+  background: var(--danger-fill);
+  color: white;
+  animation: avatar-badge-error-pulse 1.6s ease-in-out infinite;
+}
+@keyframes avatar-badge-error-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--background), 0 0 0 2px var(--danger-fill); }
+  50% { box-shadow: 0 0 0 2px var(--background), 0 0 0 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-badge.error { animation: none; }
+}
 
 .avatar-agent {
   position: absolute;
